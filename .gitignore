@@ -1,0 +1,15 @@
+.DS_Store
+.dart_tool/
+
+.packages
+.pub/
+
+build/
+
+.vscode/
+.idea/
+
+# ios specific
+example/ios/Runner.xcworkspace/
+
+# android specific
