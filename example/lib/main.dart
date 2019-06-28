@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-
+import 'package:flutter/services.dart';
 import 'package:save_in_gallery/save_in_gallery.dart';
 
 void main() => runApp(MyApp());
@@ -31,7 +30,10 @@ class _MyAppState extends State<MyApp> {
       final byteData =
           await listener.image.toByteData(format: ImageByteFormat.png);
       final bytes = byteData.buffer.asUint8List();
-      final res = await imageSaver.saveImage(imageBytes: bytes);
+//      final res = await imageSaver.saveImage(imageBytes: bytes);
+//      final res = await imageSaver.saveImages(imageBytes: [bytes]);
+      final res = await imageSaver
+          .saveNamedImages(namedImageBytes: {"testImageName": bytes});
       print(res);
     });
   }
@@ -39,7 +41,8 @@ class _MyAppState extends State<MyApp> {
   Future<void> saveAssetImage() async {
     final url = "assets/sun.jpg";
     final bytes = await rootBundle.load(url);
-    final res = await imageSaver.saveImage(imageBytes: bytes.buffer.asUint8List());
+    final res =
+        await imageSaver.saveImage(imageBytes: bytes.buffer.asUint8List());
     print(res);
   }
 
