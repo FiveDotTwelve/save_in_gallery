@@ -27,23 +27,38 @@ public class SwiftSaveInGalleryPlugin: NSObject, FlutterPlugin {
 
         if call.method == "saveImageKey" {
             guard let params = call.arguments as? [String: Any],
-                let imageData = params["image"] as? FlutterStandardTypedData,
+                let imageData = params["imageBytes"] as? FlutterStandardTypedData,
                 let image = UIImage(data: imageData.data)
             else {
                     result(channelError(message: errorMessage))
                     return
             }
-            imageSaver.saveImage(image)
+            
+            let dir = params["directoryName"] as? String
+            imageSaver.saveImage(image, in: dir)
         } else if call.method == "saveImagesKey" {
             guard let params = call.arguments as? [String: Any],
-                var images = params["images"] as? [FlutterStandardTypedData],
-                let namedImages = params["namedImages"] as? [String: FlutterStandardTypedData]
+                let images = params["images"] as? [FlutterStandardTypedData]
             else {
-                    result(channelError(message: errorMessage))
-                    return
+                result(channelError(message: errorMessage))
+                return
             }
-            images.append(contentsOf: Array(namedImages.values))
-            imageSaver.saveImages(images.compactMap({ UIImage(data: $0.data) }))
+            
+            let dir = params["directoryName"] as? String
+            imageSaver.saveImages(images.compactMap({ UIImage(data: $0.data) }), in: dir)
+        } else if call.method == "saveNamedImagesKey" {
+            guard let params = call.arguments as? [String: Any],
+                let namedImages = params["images"] as? [String: FlutterStandardTypedData]
+            else {
+                result(channelError(message: errorMessage))
+                return
+            }
+            
+            let dir = params["directoryName"] as? String
+            let images = Array(namedImages.values)
+            imageSaver.saveImages(images.compactMap({ UIImage(data: $0.data) }), in: dir)
+        } else {
+            result(FlutterMethodNotImplemented)
         }
     }
 }
