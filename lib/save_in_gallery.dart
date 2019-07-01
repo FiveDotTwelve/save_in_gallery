@@ -31,7 +31,7 @@ class ImageSaver {
         },
       );
       return result;
-    } on PlatformException catch (e) {
+    } on PlatformException {
       return false;
     }
   }
@@ -57,7 +57,7 @@ class ImageSaver {
         },
       );
       return result;
-    } on PlatformException catch (e) {
+    } on PlatformException {
       return false;
     }
   }
@@ -84,7 +84,7 @@ class ImageSaver {
         },
       );
       return result;
-    } on PlatformException catch (e) {
+    } on PlatformException {
       return false;
     }
   }
