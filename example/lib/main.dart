@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -38,7 +39,9 @@ class _MyAppState extends State<MyApp> {
           await listener.image.toByteData(format: ImageByteFormat.png);
       final bytes = byteData.buffer.asUint8List();
       final res = await _imageSaver.saveImage(
-          imageBytes: bytes, directoryName: "dir_name");
+        imageBytes: bytes,
+        directoryName: "dir_name",
+      );
       _stopLoading();
       _displayResult(res);
       print(res);
@@ -48,10 +51,13 @@ class _MyAppState extends State<MyApp> {
   /// Saves one of asset images to gallery
   Future<void> saveAssetImage() async {
     _startLoading();
-    final url = "assets/sun.jpg";
-    final bytes = await rootBundle.load(url);
-    final res =
-        await _imageSaver.saveImage(imageBytes: bytes.buffer.asUint8List());
+    final urls = ["assets/sun.jpg"];
+    List<Uint8List> bytesList = [];
+    for (final url in urls) {
+      final bytes = await rootBundle.load(url);
+      bytesList.add(bytes.buffer.asUint8List());
+    }
+    final res = await _imageSaver.saveImages(imageBytes: bytesList);
     _stopLoading();
     _displayResult(res);
     print(res);
@@ -85,9 +91,7 @@ class _MyAppState extends State<MyApp> {
                   duration: Duration(seconds: 1),
                   child: Text(
                     _resultText,
-                    style: TextStyle(
-                      color: _resultColor
-                    ),
+                    style: TextStyle(color: _resultColor),
                   ),
                 )
               ],
