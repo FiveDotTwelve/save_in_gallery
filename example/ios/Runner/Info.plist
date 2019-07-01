@@ -43,5 +43,7 @@
 	<false/>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>Need to save photos</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Need access to gallery to save photo in named album</string>
 </dict>
 </plist>

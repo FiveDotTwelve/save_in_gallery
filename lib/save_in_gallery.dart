@@ -73,7 +73,7 @@ class ImageSaver {
   }) async {
     assert(
       namedImageBytes != null && namedImageBytes.isNotEmpty,
-      "either imageBytes or namedImageBytes must not be null or empty",
+      "namedImageBytes must not be null and must not be empty",
     );
     try {
       final bool result = await _platform.invokeMethod(
