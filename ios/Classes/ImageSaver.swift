@@ -19,39 +19,55 @@ class ImageSaver: NSObject {
     init(onImagesSave: ((Bool) -> Void)?) {
         self.onImagesSave = onImagesSave
     }
-    
+
     // MARK: public interface
     func saveImage(_ image: UIImage, in dir: String?) {
         imagesRemaining = 1
         savingMultipleImages = false
+
         if let dir = dir {
-            save(image, in: dir)
+            createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
+                self.save(image, in: assetCollection)
+            })
+        } else {
+            save(image)
         }
-        save(image)
     }
 
     func saveImages(_ images: [UIImage], in dir: String?) {
-        imagesRemaining = images.count
         savingMultipleImages = true
-        for image in images {
-            if let dir = dir {
-                save(image, in: dir)
+        imagesRemaining = images.count
+
+        if let dir = dir {
+            createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
+                for image in images {
+                    self.save(image, in: assetCollection)
+                }
+            })
+        } else {
+            for image in images {
+                save(image)
             }
-            save(image)
         }
     }
 
     func saveImages(_ images: [String: UIImage], in dir: String?) {
         savingMultipleImages = true
         imagesRemaining = images.count
-        for (_, image) in images {
-            if let dir = dir {
-                save(image, in: dir)
+
+        if let dir = dir {
+            createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
+                for (_, image) in images {
+                    self.save(image, in: assetCollection)
+                }
+            })
+        } else {
+            for (_, image) in images {
+                save(image)
             }
-            save(image)
         }
     }
-    
+
     // MARK: save in default album
     private func save(_ image: UIImage) {
         UIImageWriteToSavedPhotosAlbum(
@@ -61,35 +77,23 @@ class ImageSaver: NSObject {
             nil
         )
     }
-    
+
     // MARK: saving in custom named album
-    private func save(_ image: UIImage, in dir: String) {
+    private func save(_ image: UIImage, in dir: PHAssetCollection) {
         if PHPhotoLibrary.authorizationStatus() != PHAuthorizationStatus.authorized {
             PHPhotoLibrary.requestAuthorization({ (status) -> Void in
                 if PHPhotoLibrary.authorizationStatus() != PHAuthorizationStatus.authorized {
                     self.onSave(success: false)
                 } else {
-                    self.createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
-                        self.saveInCreatedAlbum(
-                            image: image,
-                            albumName: dir,
-                            assetCollection: assetCollection
-                        )
-                    })
+                    self.saveInCreatedAlbum(image: image, assetCollection: dir)
                 }
             })
         } else {
-            createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
-                self.saveInCreatedAlbum(
-                    image: image,
-                    albumName: dir,
-                    assetCollection: assetCollection
-                )
-            })
+            self.saveInCreatedAlbum(image: image, assetCollection: dir)
         }
     }
-    
-    private func saveInCreatedAlbum(image: UIImage, albumName: String, assetCollection: PHAssetCollection) {
+
+    private func saveInCreatedAlbum(image: UIImage, assetCollection: PHAssetCollection) {
         PHPhotoLibrary.shared().performChanges({
             let assetChangeRequest = PHAssetChangeRequest.creationRequestForAsset(from: image)
             let assetPlaceHolder = assetChangeRequest.placeholderForCreatedAsset
@@ -97,18 +101,18 @@ class ImageSaver: NSObject {
             let enumeration: NSArray = assetPlaceHolder == nil ? [] : [assetPlaceHolder!]
             albumChangeRequest?.addAssets(enumeration)
         }, completionHandler: { (success, error) -> Void in
-            self.onSave(success: (error == nil && success))
-        })
+                self.onSave(success: (error == nil && success))
+            })
     }
-    
+
     func fetchAssetCollectionForAlbum(albumName: String) -> PHAssetCollection? {
         let fetchOptions = PHFetchOptions()
         fetchOptions.predicate = NSPredicate(format: "title = %@", albumName)
         let collection = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: fetchOptions)
-        
+
         return collection.firstObject
     }
-    
+
     func createAlbumIfNeeded(albumName: String, completion: @escaping (PHAssetCollection) -> Void) {
         if let assetCollection = self.fetchAssetCollectionForAlbum(albumName: albumName) {
             completion(assetCollection)
@@ -117,14 +121,14 @@ class ImageSaver: NSObject {
         PHPhotoLibrary.shared().performChanges({
             PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumName)
         }, completionHandler: { success, error in
-            if success, let assetCollection = self.fetchAssetCollectionForAlbum(albumName: albumName) {
-                completion(assetCollection)
-            } else {
-                self.onSave(success: false)
-            }
-        })
+                if success, let assetCollection = self.fetchAssetCollectionForAlbum(albumName: albumName) {
+                    completion(assetCollection)
+                } else {
+                    self.onSave(success: false)
+                }
+            })
     }
-    
+
     // MARK: on save handlers
     @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
         if error != nil {
