@@ -1,3 +1,7 @@
+## 0.1.3
+
+* Fixed bug that caused photos to not save properly if it was first save after granting gallery access
+
 ## 0.1.2
 
 * Fixed bug that caused too many named albums to be created on iOS

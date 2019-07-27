@@ -25,47 +25,67 @@ class ImageSaver: NSObject {
         imagesRemaining = 1
         savingMultipleImages = false
 
-        if let dir = dir {
-            createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
-                self.save(image, in: assetCollection)
-            })
-        } else {
-            save(image)
-        }
+        requestPermissionIfNeeded(completion: { (permissionGranted) in
+            if permissionGranted {
+                if let dir = dir {
+                    self.createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
+                        self.save(image, in: assetCollection)
+                    })
+                } else {
+                    self.save(image)
+                }
+            } else {
+                self.onSave(success: false)
+            }
+        })
+        
     }
 
     func saveImages(_ images: [UIImage], in dir: String?) {
         savingMultipleImages = true
         imagesRemaining = images.count
-
-        if let dir = dir {
-            createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
-                for image in images {
-                    self.save(image, in: assetCollection)
+        
+        requestPermissionIfNeeded(completion: { (permissionGranted) in
+            if permissionGranted {
+                if let dir = dir {
+                    self.createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
+                        for image in images {
+                            self.save(image, in: assetCollection)
+                        }
+                    })
+                } else {
+                    for image in images {
+                        self.save(image)
+                    }
                 }
-            })
-        } else {
-            for image in images {
-                save(image)
+            } else {
+                self.onSave(success: false)
             }
-        }
+        })
+        
     }
 
     func saveImages(_ images: [String: UIImage], in dir: String?) {
         savingMultipleImages = true
         imagesRemaining = images.count
-
-        if let dir = dir {
-            createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
-                for (_, image) in images {
-                    self.save(image, in: assetCollection)
+        
+        requestPermissionIfNeeded(completion: { (permissionGranted) in
+            if permissionGranted {
+                if let dir = dir {
+                    self.createAlbumIfNeeded(albumName: dir, completion: { assetCollection in
+                        for (_, image) in images {
+                            self.save(image, in: assetCollection)
+                        }
+                    })
+                } else {
+                    for (_, image) in images {
+                        self.save(image)
+                    }
                 }
-            })
-        } else {
-            for (_, image) in images {
-                save(image)
+            } else {
+                self.onSave(success: false)
             }
-        }
+        })
     }
 
     // MARK: save in default album
@@ -80,17 +100,21 @@ class ImageSaver: NSObject {
 
     // MARK: saving in custom named album
     private func save(_ image: UIImage, in dir: PHAssetCollection) {
-        if PHPhotoLibrary.authorizationStatus() != PHAuthorizationStatus.authorized {
-            PHPhotoLibrary.requestAuthorization({ (status) -> Void in
-                if PHPhotoLibrary.authorizationStatus() != PHAuthorizationStatus.authorized {
-                    self.onSave(success: false)
-                } else {
-                    self.saveInCreatedAlbum(image: image, assetCollection: dir)
-                }
+        self.saveInCreatedAlbum(image: image, assetCollection: dir)
+    }
+    
+    private func requestPermissionIfNeeded(completion: @escaping (Bool) -> Void) {
+        if !hasPermission() {
+            PHPhotoLibrary.requestAuthorization({ (status) in
+                completion(status == PHAuthorizationStatus.authorized)
             })
         } else {
-            self.saveInCreatedAlbum(image: image, assetCollection: dir)
+            completion(true)
         }
+    }
+    
+    private func hasPermission() -> Bool {
+        return PHPhotoLibrary.authorizationStatus() == PHAuthorizationStatus.authorized
     }
 
     private func saveInCreatedAlbum(image: UIImage, assetCollection: PHAssetCollection) {
@@ -102,7 +126,7 @@ class ImageSaver: NSObject {
             albumChangeRequest?.addAssets(enumeration)
         }, completionHandler: { (success, error) -> Void in
                 self.onSave(success: (error == nil && success))
-            })
+        })
     }
 
     func fetchAssetCollectionForAlbum(albumName: String) -> PHAssetCollection? {
