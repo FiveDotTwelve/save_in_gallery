@@ -34,18 +34,20 @@ class _MyAppState extends State<MyApp> {
     final image = NetworkImage(url);
     final key = await image.obtainKey(ImageConfiguration());
     final load = image.load(key);
-    load.addListener((listener, err) async {
-      final byteData =
-          await listener.image.toByteData(format: ImageByteFormat.png);
-      final bytes = byteData.buffer.asUint8List();
-      final res = await _imageSaver.saveImage(
-        imageBytes: bytes,
-        directoryName: "dir_name",
-      );
-      _stopLoading();
-      _displayResult(res);
-      print(res);
-    });
+    load.addListener(
+      ImageStreamListener((listener, err) async {
+        final byteData =
+            await listener.image.toByteData(format: ImageByteFormat.png);
+        final bytes = byteData.buffer.asUint8List();
+        final res = await _imageSaver.saveImage(
+          imageBytes: bytes,
+          directoryName: "dir_name",
+        );
+        _stopLoading();
+        _displayResult(res);
+        print(res);
+      }),
+    );
   }
 
   /// Saves one of asset images to gallery
