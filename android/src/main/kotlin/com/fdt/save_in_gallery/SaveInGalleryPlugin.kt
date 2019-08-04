@@ -1,8 +1,8 @@
 package com.fdt.save_in_gallery
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Environment.DIRECTORY_PICTURES
 import android.os.Environment.getExternalStoragePublicDirectory
@@ -15,10 +15,8 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
 import io.flutter.plugin.common.PluginRegistry.Registrar
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 class SaveInGalleryPlugin(
     private val context: Activity
@@ -32,7 +30,6 @@ class SaveInGalleryPlugin(
         private const val SAVE_IMAGES_METHOD_KEY = "saveImagesKey"
         private const val SAVE_NAMED_IMAGES_METHOD_KEY = "saveNamedImagesKey"
         private const val STORAGE_PERMISSION_REQUEST = 3
-        private const val IMAGE_FILE_EXTENSION = "PNG"
 
         @JvmStatic
         fun registerWith(registrar: Registrar) {
@@ -42,12 +39,6 @@ class SaveInGalleryPlugin(
             registrar.addRequestPermissionsResultListener(galleryPlugin)
         }
     }
-
-    data class StoreImageRequest(
-        val method: String,
-        val arguments: Map<String, Any>,
-        val result: Result
-    )
 
     private val storeImagesQue = ArrayDeque<StoreImageRequest>()
 
@@ -82,41 +73,13 @@ class SaveInGalleryPlugin(
         val imageName = arguments["imageName"] as? String
         val directoryName = arguments["directoryName"] as? String
 
-        if (!hasWriteStoragePermission()) {
-            storeImagesQue.add(request)
-            requestStoragePermission()
+        if (!checkWriteStoragePermission(request)) {
             return
         }
 
-        val directory = if (directoryName == null || directoryName.isEmpty()) {
-            getExternalStoragePublicDirectory(DIRECTORY_PICTURES)
-        } else {
-            File(getExternalStoragePublicDirectory(DIRECTORY_PICTURES), directoryName)
-        }
+        val namedImages = listOf(NamedImage(imageName, imageBytes))
 
-        if (!directory.exists()) {
-            directory.mkdirs()
-        }
-
-        val name =
-            imageName ?: TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()).toString()
-        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-
-        val formattedName = makeSureNameFormatIsCorrect(name)
-        val imageFile = File(directory, formattedName)
-
-        if (imageFile.exists()) {
-            imageFile.delete()
-        }
-
-        try {
-            FileOutputStream(File(directory, formattedName)).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-            }
-            request.result.success(true)
-        } catch (e: IOException) {
-            request.result.error("ERROR", "Error while saving image into file: ${e.message}", null)
-        }
+        saveImages(directoryName, namedImages, request.result)
     }
 
     private fun onSaveImagesCalled(request: StoreImageRequest) {
@@ -125,48 +88,13 @@ class SaveInGalleryPlugin(
         @Suppress("UNCHECKED_CAST") val images = arguments["images"] as List<ByteArray>
         val directoryName = arguments["directoryName"] as? String
 
-        if (!hasWriteStoragePermission()) {
-            storeImagesQue.add(request)
-            requestStoragePermission()
+        if (!checkWriteStoragePermission(request)) {
             return
         }
 
-        val directory = if (directoryName == null || directoryName.isEmpty()) {
-            getExternalStoragePublicDirectory(DIRECTORY_PICTURES)
-        } else {
-            File(getExternalStoragePublicDirectory(DIRECTORY_PICTURES), directoryName)
-        }
+        val namedImages = images.map { NamedImage(it) }
 
-        if (!directory.exists()) {
-            directory.mkdirs()
-        }
-
-
-        images.forEach { imageBytes ->
-            val name = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()).toString()
-            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-
-            val formattedName = makeSureNameFormatIsCorrect(name)
-            val imageFile = File(directory, formattedName)
-
-            if (imageFile.exists()) {
-                imageFile.delete()
-            }
-
-            try {
-                FileOutputStream(File(directory, formattedName)).use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                }
-            } catch (e: IOException) {
-                request.result.error(
-                    "ERROR",
-                    "Error while saving image into file: ${e.message}",
-                    null
-                )
-            }
-        }
-
-        request.result.success(true)
+        saveImages(directoryName, namedImages, request.result)
     }
 
     private fun onSaveNamedImagesCalled(request: StoreImageRequest) {
@@ -175,13 +103,22 @@ class SaveInGalleryPlugin(
         val directoryName = arguments["directoryName"] as? String
         @Suppress("UNCHECKED_CAST") val images = arguments["images"] as Map<String, ByteArray>
 
-        if (!hasWriteStoragePermission()) {
-            storeImagesQue.add(request)
-            requestStoragePermission()
+        if (!checkWriteStoragePermission(request)) {
             return
         }
 
-        val directory = if (directoryName == null || directoryName.isEmpty()) {
+        val namedImages = images.map { NamedImage(it.key, it.value) }
+
+        saveImages(directoryName, namedImages, request.result)
+    }
+
+    @SuppressLint("DefaultLocale")
+    private fun saveImages(
+        directoryName: String?,
+        images: List<NamedImage>,
+        result: Result
+    ) {
+        val directory = if (directoryName.isNullOrEmpty()) {
             getExternalStoragePublicDirectory(DIRECTORY_PICTURES)
         } else {
             File(getExternalStoragePublicDirectory(DIRECTORY_PICTURES), directoryName)
@@ -191,45 +128,45 @@ class SaveInGalleryPlugin(
             directory.mkdirs()
         }
 
-        images.forEach { imageMap ->
-            val name = imageMap.key
-            val imageBytes = imageMap.value
-            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-            val formattedName = makeSureNameFormatIsCorrect(name)
+        images.forEach { namedImage ->
+            val nameWithCompressFormat = namedImage.fileNameWithCompressFormat()
+            val data = namedImage.data
+            val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
 
-            val imageFile = File(directory, formattedName)
+            val fileName = nameWithCompressFormat.first
+            val format = nameWithCompressFormat.second
+            val fullName = "%s.%s".format(fileName, format.name.toLowerCase())
 
-            if (imageFile.exists()) {
-                imageFile.delete()
+            //clean up previous file
+            File(directory, fullName).apply {
+                if (exists()) {
+                    delete()
+                }
             }
 
             try {
-                FileOutputStream(File(directory, formattedName)).use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                File(directory, fullName).outputStream().use { out ->
+                    bitmap.compress(format, 100, out)
                 }
             } catch (e: IOException) {
-                request.result.error(
-                    "ERROR",
+                result.error(
+                    ErrorCode.SAVE_IMAGE_ERROR_CODE,
                     "Error while saving image into file: ${e.message}",
                     null
                 )
             }
         }
 
-        request.result.success(true)
+        result.success(true)
     }
 
-    private fun makeSureNameFormatIsCorrect(name: String): String =
-        when {
-            !name.contains('.') -> "$name.$IMAGE_FILE_EXTENSION"
-            name.substringAfterLast('.', "").isEmpty() ||
-                    !name.substringAfterLast(
-                        '.',
-                        ""
-                    ).equals(IMAGE_FILE_EXTENSION, ignoreCase = true) -> {
-                name.replaceAfterLast('.', IMAGE_FILE_EXTENSION)
-            }
-            else -> name
+    private fun checkWriteStoragePermission(request: StoreImageRequest): Boolean =
+        if (hasWriteStoragePermission()) {
+            true
+        } else {
+            storeImagesQue.add(request)
+            requestStoragePermission()
+            false
         }
 
     private fun hasWriteStoragePermission(): Boolean =
@@ -237,7 +174,6 @@ class SaveInGalleryPlugin(
             context,
             android.Manifest.permission.WRITE_EXTERNAL_STORAGE
         ) == PackageManager.PERMISSION_GRANTED
-
 
     private fun requestStoragePermission() {
         ActivityCompat.requestPermissions(
@@ -248,16 +184,17 @@ class SaveInGalleryPlugin(
     }
 
     private fun onStoragePermissionResult(grantResults: IntArray) {
-        if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            while (!storeImagesQue.isEmpty()) {
-                val imageRequest = storeImagesQue.pop()
+        val hasWritePermission =
+            grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+
+        while (!storeImagesQue.isEmpty()) {
+            val imageRequest = storeImagesQue.pop()
+
+            if (hasWritePermission) {
                 onMethodCalled(imageRequest)
-            }
-        } else {
-            while (!storeImagesQue.isEmpty()) {
-                val imageRequest = storeImagesQue.pop()
+            } else {
                 imageRequest.result.error(
-                    "ERROR",
+                    ErrorCode.WRITE_STORAGE_PERMISSION_ERROR_CODE,
                     "Saving in gallery error for $imageRequest",
                     null
                 )

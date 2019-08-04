@@ -13,3 +13,5 @@ build/
 example/ios/Runner.xcworkspace/
 
 # android specific
+i18n.dart
+strings_en.arb
