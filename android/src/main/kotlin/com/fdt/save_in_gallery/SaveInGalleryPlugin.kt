@@ -32,10 +32,11 @@ class SaveInGalleryPlugin(
         private const val SAVE_IMAGES_METHOD_KEY = "saveImagesKey"
         private const val SAVE_NAMED_IMAGES_METHOD_KEY = "saveNamedImagesKey"
         private const val STORAGE_PERMISSION_REQUEST = 3
-        private const val IMAGE_FILE_EXTENSION = "PNG"
+        private const val IMAGE_FILE_EXTENSION = "jpg"
 
         @JvmStatic
         fun registerWith(registrar: Registrar) {
+            if(registrar.activity() == null) return
             val channel = MethodChannel(registrar.messenger(), CHANNEL_NAME)
             val galleryPlugin = SaveInGalleryPlugin(registrar.activity())
             channel.setMethodCallHandler(galleryPlugin)
@@ -111,7 +112,7 @@ class SaveInGalleryPlugin(
 
         try {
             FileOutputStream(File(directory, formattedName)).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
             }
             request.result.success(true)
         } catch (e: IOException) {
@@ -155,7 +156,7 @@ class SaveInGalleryPlugin(
 
             try {
                 FileOutputStream(File(directory, formattedName)).use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
                 }
             } catch (e: IOException) {
                 request.result.error(
@@ -205,7 +206,7 @@ class SaveInGalleryPlugin(
 
             try {
                 FileOutputStream(File(directory, formattedName)).use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
                 }
             } catch (e: IOException) {
                 request.result.error(
