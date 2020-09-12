@@ -32,7 +32,7 @@ class SaveInGalleryPlugin(
         private const val SAVE_IMAGES_METHOD_KEY = "saveImagesKey"
         private const val SAVE_NAMED_IMAGES_METHOD_KEY = "saveNamedImagesKey"
         private const val STORAGE_PERMISSION_REQUEST = 3
-        private const val IMAGE_FILE_EXTENSION = "PNG"
+        private const val IMAGE_FILE_EXTENSION = "png"
 
         @JvmStatic
         fun registerWith(registrar: Registrar) {
