@@ -9,7 +9,11 @@ build/
 .vscode/
 .idea/
 
-# ios specific
-example/ios/Runner.xcworkspace/
+# example app
+example/.flutter-plugins-dependencies
 
-# android specific
+## ios specific
+example/ios/Runner.xcworkspace/
+example/ios/Flutter/flutter_export_environment.sh
+
+## android specific
